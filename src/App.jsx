@@ -372,6 +372,27 @@ export default function App() {
               ))}
             </tbody>
           </table>
+          {/* Mobile card view - visible on small screens via CSS */}
+          <div className="history-cards">
+            {history.map((h) => (
+              <div className="history-card" key={h.id}>
+                <div className="hc-row"><div className="hc-label">Time</div><div className="hc-val">{h.time}</div></div>
+                <div className="hc-row"><div className="hc-label">Cap Type</div><div className="hc-val">{h.capType}</div></div>
+                <div className="hc-row"><div className="hc-label">Caps / Min</div><div className="hc-val">{h.capsPerMin}</div></div>
+                <div className="hc-row"><div className="hc-label">Cap wt (g)</div><div className="hc-val">{h.capWeight} g</div></div>
+                <div className="hc-row"><div className="hc-label">Raw Material</div><div className="hc-val">₹{h.rmCost}</div></div>
+                <div className="hc-row"><div className="hc-label">Electricity / Cap</div><div className="hc-val">₹{h.electricity}</div></div>
+                <div className="hc-row"><div className="hc-label">Labour</div><div className="hc-val">₹{h.labour}</div></div>
+                <div className="hc-row"><div className="hc-label">Transport</div><div className="hc-val">₹{h.transport}</div></div>
+                <div className="hc-row"><div className="hc-label">Packaging</div><div className="hc-val">₹{h.packaging}</div></div>
+                <div className="hc-row"><div className="hc-label">Production Cost</div><div className="hc-val">₹{h.totalCost}</div></div>
+                <div className="hc-row"><div className="hc-label">Selling Price</div><div className="hc-val">₹{h.sellingPrice}</div></div>
+                <div className="hc-row"><div className="hc-label">Actual Selling</div><div className="hc-val">₹{h.actualSellingPrice}</div></div>
+                <div className="hc-row"><div className="hc-label">Actual Margin</div><div className={`hc-val ${getMarginClass(h.actualMargin)}`}>₹{h.actualMargin}</div></div>
+                <div className="hc-actions"><button className="btn small" onClick={() => saveEntryAsTxt(h)}>Save</button></div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
     </div>
