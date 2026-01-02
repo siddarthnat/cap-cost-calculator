@@ -100,6 +100,12 @@ export default function App() {
     return s.replace(/[^0-9a-zA-Z-_\.]/g, "-");
   }
 
+  function getMarginClass(m) {
+    if (m > 0.2) return 'margin-good';
+    if (m > 0.1) return 'margin-fair';
+    return 'margin-bad';
+  }
+
   function saveEntryAsTxt(entry) {
     const lines = [];
     lines.push(`Time: ${entry.time}`);
@@ -312,7 +318,7 @@ export default function App() {
           <div className="strong">₹{data.actualSellingPrice ? Number(data.actualSellingPrice).toFixed(2) : "0.00"}</div>
 
           <div className="muted">Actual Margin / Cap</div>
-          <div className="strong" style={{ color: actualMargin <= 0.1 ? '#ff7f50' : 'inherit' }}>₹{actualMargin.toFixed(2)}</div>
+          <div className={`strong ${getMarginClass(actualMargin)}`}>₹{actualMargin.toFixed(2)}</div>
         </div>
       </section>
 
@@ -360,7 +366,7 @@ export default function App() {
                   <td style={{ textAlign: "right" }}>₹{h.totalCost}</td>
                   <td style={{ textAlign: "right" }}>₹{h.sellingPrice}</td>
                   <td style={{ textAlign: "right" }}>₹{h.actualSellingPrice}</td>
-                  <td style={{ textAlign: "right", color: (h.actualMargin <= 0.1 ? '#ff7f50' : 'inherit') }}>₹{h.actualMargin}</td>
+                  <td style={{ textAlign: "right" }} className={getMarginClass(h.actualMargin)}>₹{h.actualMargin}</td>
                   <td style={{ textAlign: "center" }}><button className="btn small" onClick={() => saveEntryAsTxt(h)}>Save</button></td>
                 </tr>
               ))}
