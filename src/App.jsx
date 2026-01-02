@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function App() {
   const [data, setData] = useState({
@@ -6,20 +6,40 @@ export default function App() {
     rmKg: 89,
     cavities: 8,
     cycleTime: 13.5,
-    powerKwhHr: 50,
-    powerRate: 8.25,
+    // Electricity inputs: total bill and machine running hours
+    electricityBill: 10000,
+    electricityRunningHours: 572,
     labour: 81600,
     transport: 14000,
-    ebCost: 18000,
     days: 26,
     hours: 22,
     packCost: 32,
     capsPerSack: 5000,
-    margin: 0.25
+    margin: 0.25,
+    actualSellingPrice: 0
   });
 
   const [capType, setCapType] = useState("53mm");
   const [history, setHistory] = useState([]);
+
+  // load history from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("cap_history");
+      if (raw) setHistory(JSON.parse(raw));
+    } catch (e) {
+      console.warn("Failed to load history", e);
+    }
+  }, []);
+
+  // persist history to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("cap_history", JSON.stringify(history));
+    } catch (e) {
+      console.warn("Failed to save history", e);
+    }
+  }, [history]);
 
   const minsMonth = data.days * data.hours * 60;
   const capsPerMin = (60 / data.cycleTime) * data.cavities;
@@ -28,15 +48,14 @@ export default function App() {
   const rmCost = (data.rmKg / 1000) * capWeight;
   const labourCap = (data.labour / minsMonth) / capsPerMin;
   const transportCap = (data.transport / minsMonth) / capsPerMin;
-  const powerCap =
-    ((data.powerKwhHr * data.powerRate) / 60) / capsPerMin;
-  const ebCap = (data.ebCost / minsMonth) / capsPerMin;
+  const electricityPerHour = data.electricityRunningHours ? data.electricityBill / data.electricityRunningHours : 0;
+  const powerCap = electricityPerHour && capsPerMin ? electricityPerHour / (capsPerMin * 60) : 0;
   const packCap = data.packCost / data.capsPerSack;
 
-  const totalCost =
-    rmCost + labourCap + transportCap + powerCap + packCap + ebCap;
+  const totalCost = rmCost + labourCap + transportCap + powerCap + packCap;
 
   const sellingPrice = totalCost + data.margin;
+  const actualMargin = data.actualSellingPrice ? data.actualSellingPrice - totalCost : 0;
 
   const handleChange = (e) => {
     setData({ ...data, [e.target.name]: Number(e.target.value) });
@@ -68,9 +87,10 @@ export default function App() {
       labour: Number(labourCap.toFixed(2)),
       transport: Number(transportCap.toFixed(2)),
       packaging: Number(packCap.toFixed(2)),
-      eb: Number(ebCap.toFixed(2)),
       totalCost: Number(totalCost.toFixed(2)),
       sellingPrice: Number(sellingPrice.toFixed(2))
+      ,actualSellingPrice: Number(data.actualSellingPrice.toFixed(2)),
+      actualMargin: Number(actualMargin.toFixed(2))
     };
 
     setHistory((h) => [entry, ...h]);
@@ -91,9 +111,10 @@ export default function App() {
     lines.push(`Labour / Cap: ₹${entry.labour}`);
     lines.push(`Transport / Cap: ₹${entry.transport}`);
     lines.push(`Packaging / Cap: ₹${entry.packaging}`);
-    lines.push(`EB / Cap: ₹${entry.eb}`);
     lines.push(`Total Cost / Cap: ₹${entry.totalCost}`);
     lines.push(`Selling Price / Cap: ₹${entry.sellingPrice}`);
+    lines.push(`Actual Selling Price: ₹${entry.actualSellingPrice}`);
+    lines.push(`Actual Margin / Cap: ₹${entry.actualMargin}`);
 
     const content = lines.join("\n");
     const blob = new Blob([content], { type: "text/plain" });
@@ -123,9 +144,10 @@ export default function App() {
       lines.push(`Labour / Cap: ₹${e.labour}`);
       lines.push(`Transport / Cap: ₹${e.transport}`);
       lines.push(`Packaging / Cap: ₹${e.packaging}`);
-      lines.push(`EB / Cap: ₹${e.eb}`);
       lines.push(`Total Cost / Cap: ₹${e.totalCost}`);
       lines.push(`Selling Price / Cap: ₹${e.sellingPrice}`);
+      lines.push(`Actual Selling Price: ₹${e.actualSellingPrice}`);
+      lines.push(`Actual Margin / Cap: ₹${e.actualMargin}`);
       lines.push("");
     });
 
@@ -179,16 +201,12 @@ export default function App() {
         <div className="group">
           <h3>Electricity Costs</h3>
           <div className="control">
-            <label>EB Consumption (kWh/hr)</label>
-            <input type="number" step="any" name="powerKwhHr" value={data.powerKwhHr} onChange={handleChange} />
+            <label>Total Electricity Bill (₹)</label>
+            <input type="number" step="any" name="electricityBill" value={data.electricityBill} onChange={handleChange} />
           </div>
           <div className="control">
-            <label>Rate per Unit (₹/kWh)</label>
-            <input type="number" step="any" name="powerRate" value={data.powerRate} onChange={handleChange} />
-          </div>
-          <div className="control">
-            <label>Fixed Cost per Month (₹)</label>
-            <input type="number" step="any" name="ebCost" value={data.ebCost} onChange={handleChange} />
+            <label>Machine Running Hours (hrs)</label>
+            <input type="number" step="any" name="electricityRunningHours" value={data.electricityRunningHours} onChange={handleChange} />
           </div>
         </div>
 
@@ -246,6 +264,10 @@ export default function App() {
             <label>Margin (₹)</label>
             <input type="number" step="any" name="margin" value={data.margin} onChange={handleChange} />
           </div>
+          <div className="control">
+            <label>Actual Selling Price (₹)</label>
+            <input type="number" step="any" name="actualSellingPrice" value={data.actualSellingPrice} onChange={handleChange} />
+          </div>
         </div>
       </div>
 
@@ -253,7 +275,9 @@ export default function App() {
 
       <section className="results">
         <h2>Results (Costs are shown per cap)</h2>
+        <h3>Cap Type: {capType}</h3>
         <div className="results-grid">
+
           <div>Caps / Minute</div>
           <div className="strong">{capsPerMin.toFixed(2)}</div>
 
@@ -275,9 +299,6 @@ export default function App() {
           <div>Packaging Charges</div>
           <div className="strong">₹{packCap.toFixed(2)}</div>
 
-          <div>EB Fixed Cost </div>
-          <div className="strong">₹{ebCap.toFixed(2)}</div>
-
           <div className="muted">Total Cost / Cap</div>
           <div className="total">₹{totalCost.toFixed(2)}</div>
 
@@ -286,6 +307,12 @@ export default function App() {
 
           <div className="muted">Selling Price / Cap</div>
           <div className="price">₹{sellingPrice.toFixed(2)}</div>
+
+          <div className="muted">Actual Selling Price</div>
+          <div className="strong">₹{data.actualSellingPrice ? Number(data.actualSellingPrice).toFixed(2) : "0.00"}</div>
+
+          <div className="muted">Actual Margin / Cap</div>
+          <div className="strong" style={{ color: actualMargin <= 0.1 ? '#ff7f50' : 'inherit' }}>₹{actualMargin.toFixed(2)}</div>
         </div>
       </section>
 
@@ -301,21 +328,22 @@ export default function App() {
           </div>
           <table className="history-table">
             <thead>
-              <tr>
-                <th>Time</th>
-                <th>Cap Type</th>
-                <th style={{ textAlign: "right" }}>Caps/minute</th>
-                <th style={{ textAlign: "right" }}>Raw Material</th>
-                <th style={{ textAlign: "right" }}>Cap wt (g)</th>
-                <th style={{ textAlign: "right" }}>EB Consumption</th>
-                <th style={{ textAlign: "right" }}>Labour Costs</th>
-                <th style={{ textAlign: "right" }}>Transport</th>
-                <th style={{ textAlign: "right" }}>Packaging</th>
-                <th style={{ textAlign: "right" }}>EB Fixed Cost</th>
-                <th style={{ textAlign: "right" }}>Production Cost</th>
-                <th style={{ textAlign: "right" }}>Selling Price</th>
-                <th></th>
-              </tr>
+                  <tr>
+                    <th>Time</th>
+                    <th>Cap Type</th>
+                    <th style={{ textAlign: "right" }}>Caps/minute</th>
+                    <th style={{ textAlign: "right" }}>Raw Material</th>
+                    <th style={{ textAlign: "right" }}>Cap wt (g)</th>
+                    <th style={{ textAlign: "right" }}>Electricity / Cap</th>
+                    <th style={{ textAlign: "right" }}>Labour Costs</th>
+                    <th style={{ textAlign: "right" }}>Transport</th>
+                    <th style={{ textAlign: "right" }}>Packaging</th>
+                    <th style={{ textAlign: "right" }}>Production Cost</th>
+                    <th style={{ textAlign: "right" }}>Selling Price</th>
+                    <th style={{ textAlign: "right" }}>Actual Selling</th>
+                    <th style={{ textAlign: "right" }}>Actual Margin</th>
+                    <th></th>
+                  </tr>
             </thead>
             <tbody>
               {history.map((h) => (
@@ -329,9 +357,10 @@ export default function App() {
                   <td style={{ textAlign: "right" }}>₹{h.labour}</td>
                   <td style={{ textAlign: "right" }}>₹{h.transport}</td>
                   <td style={{ textAlign: "right" }}>₹{h.packaging}</td>
-                  <td style={{ textAlign: "right" }}>₹{h.eb}</td>
                   <td style={{ textAlign: "right" }}>₹{h.totalCost}</td>
                   <td style={{ textAlign: "right" }}>₹{h.sellingPrice}</td>
+                  <td style={{ textAlign: "right" }}>₹{h.actualSellingPrice}</td>
+                  <td style={{ textAlign: "right", color: (h.actualMargin <= 0.1 ? '#ff7f50' : 'inherit') }}>₹{h.actualMargin}</td>
                   <td style={{ textAlign: "center" }}><button className="btn small" onClick={() => saveEntryAsTxt(h)}>Save</button></td>
                 </tr>
               ))}
